@@ -1,47 +1,60 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Tilemaps;
+using UnityEngine.UI; // Add this for UI functionality
 
 public class GridManager : MonoBehaviour
 {
-    [SerializeField] private int _width, _height;
+    [Header("Grid and Tilemap")]
+    public Grid grid;                       // Reference to the Grid component
+    public Tilemap obstacleTilemap;          // Reference to the Tilemap holding obstacles
 
-    [SerializeField] private Tile _tilePrefab;
+    [Header("Trail Pieces")]
+    public GameObject selectedTrailPiece;    // The trail piece prefab to place
+    public GameObject[] trailPiecePrefabs;   // Array of different trail piece prefabs
 
-    [SerializeField] private Transform _cam;
-
-    private Dictionary<Vector2, Tile> _tiles;
-
-    void Start()
+    void Update()
     {
-        GenerateGrid();
-    }
-
-    void GenerateGrid()
-    {
-        _tiles = new Dictionary<Vector2, Tile>();
-        for (int x = 0; x < _width; x++)
+        // Check for mouse click (left button)
+        if (Input.GetMouseButtonDown(0))
         {
-            for (int y = 0; y < _height; y++)
+            // Get mouse position in world coordinates
+            Vector3 worldPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            worldPos.z = 0f; // Ensure the z-coordinate is set to 0 for 2D
+
+            // Convert world position to nearest grid cell position
+            Vector3Int cellPosition = grid.WorldToCell(worldPos);
+
+            // Check if the cell position is not an obstacle before placing a trail
+            if (!IsObstacle(cellPosition) && selectedTrailPiece != null)
             {
-                var spawnedTile = Instantiate(_tilePrefab, new Vector3(x, y), Quaternion.identity);
-                spawnedTile.name = $"Tile {x} {y}";
+                // Snap the trail piece to the center of the grid cell
+                Vector3 snappedPosition = grid.GetCellCenterWorld(cellPosition);
 
-                var isOffset = (x % 2 == 0 && y % 2 != 0) || (x % 2 != 0 && y % 2 == 0);
-                spawnedTile.Init(isOffset);
-
-
-                _tiles[new Vector2(x, y)] = spawnedTile;
+                // Place the trail piece at the snapped position
+                PlaceTrail(snappedPosition);
             }
         }
-
-        _cam.transform.position = new Vector3((float)_width / 2 - 0.5f, (float)_height / 2 - 0.5f, -10);
     }
 
-    public Tile GetTileAtPosition(Vector2 pos)
+    // Function to check if the grid cell is an obstacle
+    bool IsObstacle(Vector3Int position)
     {
-        if (_tiles.TryGetValue(pos, out var tile)) return tile;
-        return null;
+        // Check if there is a tile at the given cell in the obstacle tilemap
+        TileBase tile = obstacleTilemap.GetTile(position);
+        return tile != null; // Returns true if there's an obstacle tile
+    }
+
+    // Function to place the trail piece at a given position
+    void PlaceTrail(Vector3 position)
+    {
+        // Instantiate the selected trail piece prefab at the snapped position
+        Instantiate(selectedTrailPiece, position, Quaternion.identity);
+    }
+
+    // Function called by UI buttons to select a trail piece
+    public void SelectTrailPiece(int pieceIndex)
+    {
+        // Set the selected trail piece based on the index
+        selectedTrailPiece = trailPiecePrefabs[pieceIndex];
     }
 }
